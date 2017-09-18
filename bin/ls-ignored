@@ -1,0 +1,174 @@
+const lsIgnore = require('../index');
+const parseArgs = require('minimist');
+const process = require('process');
+const pkgDir = require('pkg-dir');
+const fs = require('fs');
+const path = require('path');
+
+var argv = parseArgs(process.argv.slice(2), {
+  alias: {
+    h: 'help',
+    n: 'npmignore',
+    f: 'file',
+    t: 'topLevel',
+    'top-level': 'topLevel',
+    r: 'recursive',
+    i: 'ignored',
+    v: 'verbose'
+  },
+  string: [
+    'file'
+  ],
+  boolean: [
+    'npmignore',
+    'help'
+  ]
+});
+
+if (argv.help) {
+  console.log(`ls-ignored
+
+List files that are ignored or not ignored by .gitignore-like files. By default
+only files not ignored by the ignore file will be printed
+
+usage: ls-ignored [-n, --npmignore] [-r, --recursive [<level>]] [-f, --file <file>]
+            [-t, --top-level] [-i, --ignored] [-v, --verbose] [files...]
+
+    [files...]                 Files to check if will be ignored or not
+
+
+    -n, --npmingore            Match files as npm would (using the .npmignore file
+                               or the .gitignore file if a .npmignore file doesn't
+                               exist)
+    -r, --recursive [<level>]  Include the files/folders inside the given
+                               files/folders. If <level> given, only recurse
+                               up to <level> directories deep (0 is unlimited).
+    -t, --top-level            Only look in the top level directory for the
+                               .gitignore and .npmignore files
+    -i, --ignored              Only print those files ignored
+    -v, --verbose              Print all files, marking included files with a +
+                               and ignored files with a -
+    -f, --file <file>          Use <file> as the ignore file instead of .gitignore
+
+    -h, --help                 Show this help
+`);
+  process.exit(0);
+}
+
+let lg;
+let basePath;
+
+const printDir = (dirpath, indent, depth) => {
+  if (!indent) {
+    indent == '';
+  }
+
+  if (!depth) {
+    depth = 0;
+  }
+
+  try {
+    const files = fs.readdirSync(dirpath);
+    printFiles(files, dirpath, indent, depth);
+  } catch (error) {
+    console.log(`Error checking folder ${dirpath}: ${error.message}`);
+    process.exit(2);
+  }
+};
+
+const makeRelativePath = (file, dirpath) => {
+  return path.relative(basePath, path.join(dirpath, file));
+};
+
+const printFiles = (files, dirpath, indent, depth) => {
+  if (!indent) {
+    indent = '';
+  }
+
+  if (!depth) {
+    depth = 0;
+  }
+
+  files = files.map((file) => makeRelativePath(file, dirpath));
+  const includedFiles = lg.filter(files);
+
+  if (argv.verbose) {
+    files.forEach((file) => {
+      try {
+        const stat = fs.statSync(path.join(basePath, file));
+        console.log(`${indent}${includedFiles.indexOf(file) === -1 ? '-' : '+'} ${!indent && argv._.length ? file : path.basename(file)}${stat.isDirectory() ? '/' : ''}`);
+        if (includedFiles.indexOf(file) !== -1 && (!argv.recursive || depth < argv.recursive)) {
+
+          if (stat.isDirectory()) {
+            printDir(path.join(basePath, file), `${indent}  `, depth + 1);
+          }
+        }
+      } catch (error) {
+        console.log(`Error checking file ${file}: ${error.message}`);
+        process.exit(2);
+      }
+    });
+  } else if (argv.ignored) {
+    files.forEach((file) => {
+      try {
+        const stat = fs.statSync(path.join(basePath, file));
+        if (includedFiles.indexOf(file) === -1) {
+          console.log(`${indent}${!indent && argv._.length ? file : path.basename(file)}${stat.isDirectory() ? '/' : ''}`);
+        }
+      } catch (error) {
+        console.log(`Error checking file ${file}: ${error.message}`);
+        process.exit(2);
+      }
+    });
+  } else {
+    includedFiles.forEach((file) => {
+      try {
+        const stat = fs.statSync(path.join(basePath, file));
+        console.log(`${indent}${!indent && argv._.length ? file : path.basename(file)}${stat.isDirectory() ? '/' : ''}`);
+
+        if (!argv.recursive || depth < argv.recursive) {
+          if (stat.isDirectory()) {
+            printDir(path.join(basePath, file), `${indent}  `, depth + 1);
+          }
+        }
+      } catch (error) {
+        console.log(`Error checking file ${file}: ${error.message}`);
+        process.exit(2);
+      }
+    });
+  }
+};
+
+if (argv.file) {
+  basePath = Promise.resolve(process.cwd());
+} else {
+  basePath = pkgDir();
+}
+
+if (argv.file) {
+  lg = lsIgnore(argv.file);
+} else {
+  lg = lsIgnore(argv.npmignore);
+}
+
+Promise.all([lg, basePath]).then(([filter, path]) => {
+  lg = filter;
+  basePath = path;
+
+  if (!argv._.length) {
+    printDir(process.cwd());
+  } else {
+    printFiles(argv._);
+  }
+}).catch((error) => {
+  if (error.code === 'ENOENT') {
+    if (argv.file) {
+      console.error(`Could not find file ${argv.file}`);
+    } else {
+      console.error(`Could not find a ${argv.npmignore ? '.npmignore file or a ' : ''}.gitignore file`);
+    }
+  } else {
+    console.error('Error:', error.message, error.stack);
+  }
+  process.exit(1);
+});
