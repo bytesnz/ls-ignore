@@ -1,3 +1,6 @@
+#!/usr/bin/env node
+'use strict';
+
 const lsIgnore = require('../index');
 const parseArgs = require('minimist');
 const process = require('process');
