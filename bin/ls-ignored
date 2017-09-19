@@ -148,7 +148,7 @@ if (argv.file) {
 if (argv.file) {
   lg = lsIgnore(argv.file);
 } else {
-  lg = lsIgnore(argv.npmignore);
+  lg = lsIgnore(argv.npmignore, !argv.topLevel);
 }
 
 Promise.all([lg, basePath]).then(([filter, path]) => {

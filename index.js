@@ -2,6 +2,7 @@ const pkgDir = require('pkg-dir');
 const ignore = require('ignore');
 const fs = require('fs');
 const path = require('path');
+const glob = require('glob');
 
 const checkForFile = (filename) => {
   return new Promise((resolve, reject) => {
@@ -16,7 +17,9 @@ const checkForFile = (filename) => {
   });
 };
 
-module.exports = (ignorePath) => {
+module.exports = (ignorePath, searchSubdirectories) => {
+  let foundNpmignore = false;
+
   return new Promise((resolve, reject) => {
     if (typeof ignorePath !== 'string') {
       pkgDir().then(rootDir => {
@@ -24,7 +27,10 @@ module.exports = (ignorePath) => {
 
         if (ignorePath) {
           // Check for the existence of a .npmignore file
-          promise = checkForFile(path.join(rootDir, '.npmignore')).catch((error) => {
+          promise = checkForFile(path.join(rootDir, '.npmignore')).then((filename) => {
+            foundNpmignore = true;
+            return filename;
+          }, (error) => {
             if (error.code === 'ENOENT') {
               return checkForFile(path.join(rootDir, '.gitignore'));
             }
@@ -54,7 +60,34 @@ module.exports = (ignorePath) => {
                 + contents;
           }
 
-          resolve(ignore().add(contents));
+          const lg = ignore().add(contents);
+
+          if  (searchSubdirectories) {
+            glob(path.join(rootDir, `*/**/${ignorePath ? '.{git,npm}ignore' : '.gitignore'}`), (error, matches) => {
+              let promises = [];
+              matches.forEach((file) => {
+                //Check if the file is in a folder that is ignored
+                const fileDir = path.relative(rootDir, path.dirname(file));
+                if(!lg.ignores(fileDir)) {
+                  subContents = fs.readFileSync(file).toString().split(/[\r\n]+/);
+                  // Map ignore to folder
+                  let relativeIgnores = [];
+                  subContents.forEach((line) => {
+                    if (!line) {
+                      return;
+                    }
+
+                    relativeIgnores.push(path.join(fileDir, line));
+                  });
+
+                  lg.add(subContents.join('\n'));
+                }
+              });
+              resolve(lg);
+            });
+          } else {
+            resolve(lg);
+          }
         });
       }).catch((error) => {
         reject(error);
