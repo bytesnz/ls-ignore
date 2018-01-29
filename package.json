@@ -1,6 +1,6 @@
 {
   "name": "ls-ignore",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "(Node.js) Command line utility for checking what files are ignored by .gitignore and .npmignore files",
   "main": "index.js",
   "scripts": {
