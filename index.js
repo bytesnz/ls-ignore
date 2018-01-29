@@ -3,6 +3,7 @@ const ignore = require('ignore');
 const fs = require('fs');
 const path = require('path');
 const glob = require('glob');
+const process = require('process');
 
 const checkForFile = (filename) => {
   return new Promise((resolve, reject) => {
@@ -24,6 +25,14 @@ module.exports = (ignorePath, searchSubdirectories) => {
     if (typeof ignorePath !== 'string') {
       pkgDir().then(rootDir => {
         let promise;
+
+        if (rootDir === null) {
+          console.error('Could not find root directory to check for ignore '
+            + 'files in searching for ' + (ignorePath ? 'a package.json file'
+            : '.git folder'));
+          process.exit(1);
+          return;
+        }
 
         if (ignorePath) {
           // Check for the existence of a .npmignore file
@@ -65,8 +74,16 @@ module.exports = (ignorePath, searchSubdirectories) => {
           const lg = ignore().add(contents);
 
           if  (searchSubdirectories) {
-            glob(path.join(rootDir, `*/**/${ignorePath ? '.{git,npm}ignore' : '.gitignore'}`), (error, matches) => {
+            glob(path.join(rootDir, `*/**/${ignorePath ? '.{git,npm}ignore' : '.gitignore'}`), {
+              silent: true
+            }, (error, matches) => {
               let promises = [];
+
+              if (error) {
+                reject(error);
+                return;
+              }
+
               matches.forEach((file) => {
                 //Check if the file is in a folder that is ignored
                 const fileDir = path.relative(rootDir, path.dirname(file));

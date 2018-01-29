@@ -171,7 +171,7 @@ Promise.all([lg, basePath]).then(([filter, path]) => {
       console.error(`Could not find a ${argv.npmignore ? '.npmignore file or a ' : ''}.gitignore file`);
     }
   } else {
-    console.error('Error:', error.message, error.stack);
+    console.error('Error:', error.message);
   }
   process.exit(1);
 });
