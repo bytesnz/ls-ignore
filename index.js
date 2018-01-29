@@ -43,7 +43,7 @@ module.exports = (ignorePath, searchSubdirectories) => {
 
         return promise.then((filename) => {
           let contents = fs.readFileSync(filename).toString();
-          if (ignorePath) {
+          if (ignorePath === true) {
             contents = '.*.swp\n'
                 + '._*\n'
                 + '.DS_Store\n'
@@ -57,6 +57,8 @@ module.exports = (ignorePath, searchSubdirectories) => {
                 + 'CVS\n'
                 + 'npm-debug.log\n'
                 + 'node_modules\n'
+                + '.gitignore\n'
+                + '.npmignore\n'
                 + contents;
           }
 
