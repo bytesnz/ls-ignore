@@ -1,6 +1,6 @@
 {
   "name": "ls-ignore",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "(Node.js) Command line utility for checking what files are ignored by .gitignore and .npmignore files",
   "main": "index.js",
   "scripts": {
@@ -21,7 +21,7 @@
   "homepage": "https://github.com/bytesnz/ls-ignore#readme",
   "dependencies": {
     "glob": "^7.1.2",
-    "ignore": "^3.3.5",
+    "ignore": "^3.3.7",
     "minimist": "^1.2.0",
     "pkg-dir": "^2.0.0"
   }
